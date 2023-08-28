@@ -3,6 +3,15 @@
 Append lines from stdin to a file, but only if they don't already appear in the file.
 Outputs new lines to `stdout` too, making it a bit like a `tee -a` that removes duplicates.
 
+## Usage
+```
+Usage of unew:
+  -a    append output in a file and print in teminal
+  -p    print only unique input directly to stdout
+  -q    quiet mode (no output at all)
+  -t    trim leading and trailing whitespace before comparison
+```
+
 ## Usage Example
 
 Here, a file called `things.txt` contains a list of numbers. `newthings.txt` contains a second
