@@ -31,7 +31,7 @@ Two
 Three
 Four
 
-▶ cat newthings.txt | unew things.txt
+▶ cat newthings.txt | unew -p things.txt
 Three
 Four
 
