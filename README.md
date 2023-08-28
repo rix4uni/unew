@@ -58,4 +58,9 @@ You can either install using go:
 go install -v github.com/rix4uni/unew@latest
 ```
 
+Or
+```
+git clone https://github.com/rix4uni/unew.git && cd unew && go build unew.go && mv unew /usr/bin/
+```
+
 Or download a [binary release](https://github.com/rix4uni/unew/releases) for your platform.
