@@ -13,9 +13,9 @@ func main() {
 	var trim bool
 	var printMode bool
 	var appendMode bool
-	flag.BoolVar(&quietMode, "q", false, "quiet mode (no output at all)")
-	flag.BoolVar(&trim, "t", false, "trim leading and trailing whitespace before comparison")
-	flag.BoolVar(&printMode, "p", false, "print only unique input directly to stdout")
+	flag.BoolVar(&quietMode, "q", false, "quiet mode (not print output in teminal)")
+	flag.BoolVar(&trim, "t", false, "trim whitespace (default: using -q flag, if you want to print output in teminal you can use -t -p)")
+	flag.BoolVar(&printMode, "p", false, "print only unique output")
 	flag.BoolVar(&appendMode, "a", false, "append output in a file and print in teminal")
 	flag.Parse()
 
@@ -65,21 +65,6 @@ func main() {
 		return
 	}
 
-	if printMode {
-		sc := bufio.NewScanner(os.Stdin)
-		for sc.Scan() {
-			line := sc.Text()
-			if trim {
-				line = strings.TrimSpace(line)
-			}
-			if _, exists := lines[line]; !exists {
-				lines[line] = struct{}{}
-				fmt.Println(line)
-			}
-		}
-		return // exit the program since we've done what was required by the -p flag
-	}
-
 	if fn != "" {
 		// re-open the file for appending new stuff
 		f, err := os.OpenFile(fn, os.O_APPEND|os.O_WRONLY|os.O_CREATE, 0644)
@@ -101,7 +86,7 @@ func main() {
 			}
 			if _, exists := lines[line]; !exists {
 				lines[line] = struct{}{}
-				if !quietMode {
+				if printMode && !quietMode {
 					fmt.Println(line)
 				}
 				w.WriteString(line + "\n")
