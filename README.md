@@ -12,6 +12,24 @@ Usage of unew:
   -t    trim whitespace (add unique trim output in a file) and (default: filename is required)
 ```
 
+## Speed Comparison
+```
+## time cat chaos-subs.txt | unew -q subs1.txt
+real    0m26.252s
+user    0m28.826s
+sys     0m9.321s
+
+## time cat chaos-subs.txt | anew -q subs2.txt
+real    1m2.659s
+user    0m37.907s
+sys     0m36.362s
+
+## time cat chaos-subs.txt | sort -u >> subs3.txt
+real    1m26.432s
+user    1m11.493s
+sys     0m3.562s
+```
+
 ## Usage Example
 
 Here, a file called `things.txt` contains a list of numbers. `newthings.txt` contains a second
