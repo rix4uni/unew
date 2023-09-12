@@ -6,10 +6,10 @@ Outputs new lines to `stdout` too, making it a bit like a `tee -a` that removes 
 ## Usage
 ```
 Usage of unew:
-  -a    append output in a file and print in teminal
-  -p    print only unique input directly to stdout
-  -q    quiet mode (no output at all)
-  -t    trim leading and trailing whitespace before comparison
+  -a    append output in a file and print in terminal and (default: filename is required)
+  -p    print only unique output and (default: filename is not required)
+  -q    quiet mode (not print output in terminal) and (default: filename is required)
+  -t    trim whitespace (add unique trim output in a file) and (default: filename is required)
 ```
 
 ## Usage Example
