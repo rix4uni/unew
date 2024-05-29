@@ -8,27 +8,22 @@ import (
 	"strings"
 )
 
+const version = "v1.0.0"
+
 func main() {
 	var appendMode bool
-	var printMode bool
 	var quietMode bool
 	var trim bool
-	flag.BoolVar(&appendMode, "a", false, "append output in a file and print in terminal and (default: filename is required)")
-	flag.BoolVar(&printMode, "p", false, "print only unique output and (default: filename is not required)")
-	flag.BoolVar(&quietMode, "q", false, "quiet mode (not print output in terminal) and (default: filename is required)")
-	flag.BoolVar(&trim, "t", false, "trim whitespace (add unique trim output in a file) and (default: filename is required)")
+	var showVersion bool
+
+	flag.BoolVar(&appendMode, "a", false, "append output; do not sort")
+	flag.BoolVar(&quietMode, "q", false, "quiet mode (no output at all on terminal)")
+	flag.BoolVar(&trim, "t", false, "trim leading and trailing whitespace before comparison")
+	flag.BoolVar(&showVersion, "v", false, "print version information and exit")
 	flag.Parse()
 
-	// Set trim to true if -q is provided and -t is not set.
-	if quietMode && !trim {
-		trim = true
-	}
-
-	if quietMode && flag.Arg(0) == "" {
-		fmt.Fprintf(os.Stderr, "filename is required when using -q flag\n")
-		return
-	}else if trim && flag.Arg(0) == "" {
-		fmt.Fprintf(os.Stderr, "filename is required when using -t flag\n")
+	if showVersion {
+		fmt.Println("unew version:", version)
 		return
 	}
 
@@ -41,7 +36,6 @@ func main() {
 		r, err := os.Open(fn)
 		if err == nil {
 			sc := bufio.NewScanner(r)
-
 			for sc.Scan() {
 				line := sc.Text()
 				if trim {
@@ -54,17 +48,19 @@ func main() {
 	}
 
 	if appendMode {
-		if fn == "" {
-			fmt.Fprintf(os.Stderr, "filename is required when using -a flag\n")
-			return
+		var f *os.File
+		var err error
+		if fn != "" {
+			f, err = os.OpenFile(fn, os.O_APPEND|os.O_WRONLY|os.O_CREATE, 0644)
+			if err != nil {
+				f = nil
+			}
 		}
-
-		f, err := os.OpenFile(fn, os.O_APPEND|os.O_WRONLY|os.O_CREATE, 0644)
-		if err != nil {
-			fmt.Fprintf(os.Stderr, "failed to open file for writing: %s\n", err)
-			return
-		}
-		defer f.Close()
+		defer func() {
+			if f != nil {
+				f.Close()
+			}
+		}()
 
 		w := bufio.NewWriter(f)
 		defer w.Flush()
@@ -75,20 +71,30 @@ func main() {
 			if trim {
 				line = strings.TrimSpace(line)
 			}
-			fmt.Println(line) // Printing line to stdout
-			w.WriteString(line + "\n") // Appending line to file
+			if !quietMode {
+				fmt.Println(line)
+			}
+			if f != nil {
+				w.WriteString(line + "\n")
+			}
 		}
 		return
 	}
 
 	if fn != "" {
-		// re-open the file for appending new stuff
-		f, err := os.OpenFile(fn, os.O_APPEND|os.O_WRONLY|os.O_CREATE, 0644)
-		if err != nil {
-			fmt.Fprintf(os.Stderr, "failed to open file for writing: %s\n", err)
-			return
+		var f *os.File
+		var err error
+		if fn != "" {
+			f, err = os.OpenFile(fn, os.O_APPEND|os.O_WRONLY|os.O_CREATE, 0644)
+			if err != nil {
+				f = nil
+			}
 		}
-		defer f.Close()
+		defer func() {
+			if f != nil {
+				f.Close()
+			}
+		}()
 
 		w := bufio.NewWriter(f)
 		defer w.Flush()
@@ -101,10 +107,12 @@ func main() {
 			}
 			if _, exists := lines[line]; !exists {
 				lines[line] = struct{}{}
-				if printMode && !quietMode {
+				if !quietMode {
 					fmt.Println(line)
 				}
-				w.WriteString(line + "\n")
+				if f != nil {
+					w.WriteString(line + "\n")
+				}
 			}
 		}
 	} else {
@@ -116,7 +124,7 @@ func main() {
 			}
 			if _, exists := lines[line]; !exists {
 				lines[line] = struct{}{}
-				if printMode && !quietMode {
+				if !quietMode {
 					fmt.Println(line)
 				}
 			}
