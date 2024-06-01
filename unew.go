@@ -8,7 +8,7 @@ import (
 	"strings"
 )
 
-const version = "v1.0.0"
+const version = "v0.0.2"
 
 func main() {
 	var appendMode bool
