@@ -13,7 +13,7 @@ go install -v github.com/rix4uni/unew@latest
 
 Or
 ```
-git clone https://github.com/rix4uni/unew.git && cd unew && go build unew.go && mv unew /usr/bin/
+wget https://raw.githubusercontent.com/rix4uni/unew/main/unew.go && go build unew.go && mv unew /usr/bin/
 ```
 
 Or download a [binary release](https://github.com/rix4uni/unew/releases) for your platform.
