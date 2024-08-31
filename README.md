@@ -24,6 +24,8 @@ Usage of unew:
   -a    append output; do not sort
   -ef
         do not create empty files
+  -el
+        remove empty lines from input
   -i    ignore case during comparison
   -q    quiet mode (no output at all on terminal)
   -shuf
