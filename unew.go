@@ -6,13 +6,18 @@ import (
 	"fmt"
 	"math/rand"
 	"os"
+	"os/signal"
 	"strings"
+	"syscall"
 	"time"
 )
 
 const version = "v0.0.3"
 
 func main() {
+	// Ignore SIGPIPE to avoid broken pipe errors
+	signal.Ignore(syscall.SIGPIPE)
+
 	var appendMode bool
 	var quietMode bool
 	var trim bool
@@ -20,6 +25,7 @@ func main() {
 	var ignoreCase bool
 	var stopEmptyFiles bool
 	var shuffle bool
+	var removeEmptyLines bool
 
 	flag.BoolVar(&appendMode, "a", false, "append output; do not sort")
 	flag.BoolVar(&quietMode, "q", false, "quiet mode (no output at all on terminal)")
@@ -28,10 +34,11 @@ func main() {
 	flag.BoolVar(&stopEmptyFiles, "ef", false, "do not create empty files")
 	flag.BoolVar(&showVersion, "v", false, "print version information and exit")
 	flag.BoolVar(&shuffle, "shuf", false, "shuffle the output lines randomly")
+	flag.BoolVar(&removeEmptyLines, "el", false, "remove empty lines from input")
 	flag.Parse()
 
 	// Validate flags: if -a is used with any flag other than -q, print an error and exit
-	if appendMode && (trim || ignoreCase || stopEmptyFiles || shuffle || showVersion) {
+	if appendMode && (trim || ignoreCase || stopEmptyFiles || shuffle || showVersion || removeEmptyLines) {
 		fmt.Println("-q flag is the only flag allowed with -a flag")
 		return
 	}
@@ -98,6 +105,9 @@ func main() {
 		sc := bufio.NewScanner(os.Stdin)
 		for sc.Scan() {
 			line := sc.Text()
+			if removeEmptyLines && line == "" {
+				continue
+			}
 			if !quietMode {
 				fmt.Println(line)
 			}
@@ -135,6 +145,9 @@ func main() {
 		sc := bufio.NewScanner(os.Stdin)
 		for sc.Scan() {
 			line := sc.Text()
+			if removeEmptyLines && line == "" {
+				continue
+			}
 			if trim {
 				line = strings.TrimSpace(line)
 			}
@@ -180,6 +193,9 @@ func main() {
 		sc := bufio.NewScanner(os.Stdin)
 		for sc.Scan() {
 			line := sc.Text()
+			if removeEmptyLines && line == "" {
+				continue
+			}
 			if trim {
 				line = strings.TrimSpace(line)
 			}
