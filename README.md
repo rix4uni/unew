@@ -30,6 +30,8 @@ Usage of unew:
   -q    quiet mode (no output at all on terminal)
   -shuf
         shuffle the output lines randomly
+  -split int
+        split the output into files with a specified number of lines per file
   -t    trim leading and trailing whitespace before comparison
   -v    print version information and exit
 ```
