@@ -12,7 +12,7 @@ import (
 	"time"
 )
 
-const version = "v0.0.4"
+const version = "v0.0.5"
 
 func main() {
 	// Ignore SIGPIPE to avoid broken pipe errors
@@ -32,8 +32,8 @@ func main() {
 	flag.BoolVar(&quietMode, "q", false, "quiet mode (no output at all on terminal)")
 	flag.BoolVar(&trim, "t", false, "trim leading and trailing whitespace before comparison")
 	flag.BoolVar(&ignoreCase, "i", false, "ignore case during comparison")
-	flag.BoolVar(&stopEmptyFiles, "ef", false, "do not create empty files")
-	flag.BoolVar(&showVersion, "v", false, "print version information and exit")
+	flag.BoolVar(&stopEmptyFiles, "ef", false, "do not create empty files, Because of some problems -ef flag cannot be used.")
+	flag.BoolVar(&showVersion, "version", false, "print version information and exit")
 	flag.BoolVar(&shuffle, "shuf", false, "shuffle the output lines randomly")
 	flag.BoolVar(&removeEmptyLines, "el", false, "remove empty lines from input")
 	flag.IntVar(&split, "split", 0, "split the output into files with a specified number of lines per file")
@@ -50,11 +50,16 @@ func main() {
 		return
 	}
 
-	fn := flag.Arg(0)
-	if stopEmptyFiles && fn == "" {
-		fmt.Println("A filename must be provided with -ef flag")
+	if stopEmptyFiles {
+		fmt.Println("Because of some problems -ef flag cannot be used.")
 		return
 	}
+
+	fn := flag.Arg(0)
+	// if stopEmptyFiles && fn == "" {
+	// 	fmt.Println("A filename must be provided with -ef flag")
+	// 	return
+	// }
 
 	if quietMode && fn == "" {
 		fmt.Println("A filename must be provided with -q flag")
