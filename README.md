@@ -27,7 +27,7 @@ cd unew; go install
 Usage of unew:
   -a    append output; do not sort
   -ef
-        do not create empty files, Because of some problems -ef flag cannot be used.
+        do not create empty files
   -el
         remove empty lines from input
   -i    ignore case during comparison
@@ -59,7 +59,7 @@ user    1m11.493s
 sys     0m3.562s
 ```
 
-## Examples
+## Usage Examples
 ```
 # input
 ▶ cat things.txt
