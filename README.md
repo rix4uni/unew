@@ -9,9 +9,9 @@ go install github.com/rix4uni/unew@latest
 
 ## Download prebuilt binaries
 ```
-wget https://github.com/rix4uni/unew/releases/download/v0.0.5/unew-linux-amd64-0.0.5.tgz
-tar -xvzf unew-linux-amd64-0.0.5.tgz
-rm -rf unew-linux-amd64-0.0.5.tgz
+wget https://github.com/rix4uni/unew/releases/download/v0.0.6/unew-linux-amd64-0.0.6.tgz
+tar -xvzf unew-linux-amd64-0.0.6.tgz
+rm -rf unew-linux-amd64-0.0.6.tgz
 mv unew ~/go/bin/unew
 ```
 Or download [binary release](https://github.com/rix4uni/unew/releases) for your platform.
@@ -95,8 +95,7 @@ JENKINS.rix4uni.com
 rix4uni.com
 admin.rix4uni.com
 jenkins.rix4uni.com
-```
 
-## TODO
-- Add `-splitb` flag for split in bytes like `split -b 50M`.
-- Fix -el issue.
+# output e.g. 5
+▶ cat things.txt | unew -split 100 newthings_split_.txt
+```
