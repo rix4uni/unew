@@ -7,6 +7,7 @@ import (
 	"math/rand"
 	"os"
 	"os/signal"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"syscall"
@@ -126,6 +127,15 @@ func shuffleLines(lines []string, quietMode bool, writer *bufio.Writer, file *os
 	return anyLinesWritten, nil
 }
 
+// ensureParentDir ensures the parent directory of the given path exists.
+func ensureParentDir(path string) error {
+	dir := filepath.Dir(path)
+	if dir == "." || dir == "" {
+		return nil
+	}
+	return os.MkdirAll(dir, 0755)
+}
+
 func main() {
 	// Ignore SIGPIPE to avoid broken pipe errors
 	signal.Ignore(syscall.SIGPIPE)
@@ -142,7 +152,7 @@ func main() {
 	var divide int
 	var sizeLimit string
 
-	flag.BoolVar(&appendMode, "a", false, "append new unique lines to output file (disables sorting and deduplication)")
+	flag.BoolVar(&appendMode, "a", false, "append lines without deduplication (can be combined with other flags)")
 	flag.BoolVar(&quietMode, "q", false, "suppress all output to terminal/stdout")
 	flag.BoolVar(&trim, "t", false, "trim leading and trailing whitespace from each line before processing")
 	flag.BoolVar(&ignoreCase, "i", false, "treat uppercase and lowercase as identical when comparing lines")
@@ -154,12 +164,6 @@ func main() {
 	flag.IntVar(&divide, "divide", 0, "divide input into N equal files, distributing lines evenly (requires filename prefix, N must be >= 2)")
 	flag.StringVar(&sizeLimit, "size", "", "split output into multiple files based on size limit (requires filename prefix, e.g., 1GB, 500MB, 1024KB, 512B)")
 	flag.Parse()
-
-	// Validate flags: if -a is used with any flag other than -q, print an error and exit
-	if appendMode && (trim || ignoreCase || stopEmptyFiles || shuffle || showVersion || removeEmptyLines || split > 0 || divide > 0 || sizeLimit != "") {
-		fmt.Println("-q flag is the only flag allowed with -a flag")
-		return
-	}
 
 	// Validate -divide flag: must be >= 2
 	if divide > 0 && divide < 2 {
@@ -215,10 +219,14 @@ func main() {
 	anyLinesWritten := false
 	lineSlice := []string{} // For shuffling purposes
 
-	if appendMode {
+	if appendMode && split == 0 && divide == 0 && sizeLimit == "" {
 		var f *os.File
 		var err error
 		if fn != "" {
+			if err := ensureParentDir(fn); err != nil {
+				fmt.Println("Error creating directory:", err)
+				return
+			}
 			f, err = os.OpenFile(fn, os.O_APPEND|os.O_WRONLY|os.O_CREATE, 0644)
 			if err != nil {
 				f = nil
@@ -236,15 +244,24 @@ func main() {
 		sc := bufio.NewScanner(os.Stdin)
 		for sc.Scan() {
 			line := sc.Text()
-			processedLine, skip := processLine(line, false, false, removeEmptyLines) // Only apply removeEmptyLines in append mode
+			processedLine, skip := processLine(line, trim, ignoreCase, removeEmptyLines)
 			if skip {
 				continue
 			}
-			if !quietMode {
+			lineSlice = append(lineSlice, processedLine)
+			if !shuffle && !quietMode {
 				fmt.Println(processedLine)
 			}
-			if f != nil {
+			if f != nil && !shuffle {
 				w.WriteString(processedLine + "\n")
+				anyLinesWritten = true
+			}
+		}
+
+		// Handle shuffling if the -shuf flag is set
+		if shuffle {
+			shuffledWritten, err := shuffleLines(lineSlice, quietMode, w, f)
+			if err == nil && shuffledWritten {
 				anyLinesWritten = true
 			}
 		}
@@ -284,6 +301,10 @@ func main() {
 			}
 			fileIndex++
 			fileName := generateFileName(baseName, fileIndex, hasTxtSuffix)
+			if err := ensureParentDir(fileName); err != nil {
+				fmt.Println("Error creating directory:", err)
+				return
+			}
 			currentFile, err = os.Create(fileName)
 			if err != nil {
 				fmt.Println("Error creating file:", err)
@@ -301,9 +322,9 @@ func main() {
 			if skip {
 				continue
 			}
-			if _, exists := lines[processedLine]; !exists {
-				lines[processedLine] = struct{}{}
-				lineSlice = append(lineSlice, processedLine) // Collect lines for shuffling
+
+			if appendMode {
+				lineSlice = append(lineSlice, processedLine) // keep duplicates for shuffle
 				if !quietMode && !shuffle {
 					fmt.Println(processedLine)
 				}
@@ -312,14 +333,27 @@ func main() {
 					anyLinesWritten = true
 					lineCount++
 				}
-
-				// Open a new file if the current one reaches the split limit
-				if lineCount >= split {
-					w.Flush()
-					lineCount = 0
-					openNewFile()
-					w = bufio.NewWriter(currentFile)
+			} else {
+				if _, exists := lines[processedLine]; !exists {
+					lines[processedLine] = struct{}{}
+					lineSlice = append(lineSlice, processedLine) // Collect lines for shuffling
+					if !quietMode && !shuffle {
+						fmt.Println(processedLine)
+					}
+					if currentFile != nil {
+						w.WriteString(processedLine + "\n")
+						anyLinesWritten = true
+						lineCount++
+					}
 				}
+			}
+
+			// Open a new file if the current one reaches the split limit
+			if lineCount >= split {
+				w.Flush()
+				lineCount = 0
+				openNewFile()
+				w = bufio.NewWriter(currentFile)
 			}
 		}
 
@@ -355,6 +389,16 @@ func main() {
 			if skip {
 				continue
 			}
+
+			if appendMode {
+				allLines = append(allLines, processedLine)
+				continue
+			}
+
+			if _, exists := lines[processedLine]; exists {
+				continue
+			}
+			lines[processedLine] = struct{}{}
 			allLines = append(allLines, processedLine)
 		}
 
@@ -385,6 +429,11 @@ func main() {
 
 			// Create output file
 			fileName := generateFileName(baseName, fileIndex, hasTxtSuffix)
+
+			if err := ensureParentDir(fileName); err != nil {
+				fmt.Printf("Error creating directory for %s: %v\n", fileName, err)
+				return
+			}
 
 			file, err := os.Create(fileName)
 			if err != nil {
@@ -436,6 +485,11 @@ func main() {
 			}
 			fileIndex++
 			fileName := generateFileName(baseName, fileIndex, hasTxtSuffix)
+
+			if err := ensureParentDir(fileName); err != nil {
+				fmt.Printf("Error creating directory for %s: %v\n", fileName, err)
+				return
+			}
 
 			currentFile, err2 = os.Create(fileName)
 			if err2 != nil {
@@ -496,6 +550,10 @@ func main() {
 		var f *os.File
 		var err error
 		if fn != "" {
+			if err := ensureParentDir(fn); err != nil {
+				fmt.Println("Error creating directory:", err)
+				return
+			}
 			f, err = os.OpenFile(fn, os.O_APPEND|os.O_WRONLY|os.O_CREATE, 0644)
 			if err != nil {
 				f = nil
