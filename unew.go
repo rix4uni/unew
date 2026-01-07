@@ -13,7 +13,7 @@ import (
 	"syscall"
 )
 
-const version = "v0.0.7"
+const version = "v0.0.8"
 
 // parseSize parses a size string (e.g., "1GB", "500MB", "1024KB", "512B") and converts it to bytes
 func parseSize(sizeStr string) (int64, error) {
@@ -248,7 +248,9 @@ func main() {
 			if skip {
 				continue
 			}
-			lineSlice = append(lineSlice, processedLine)
+			if shuffle {
+				lineSlice = append(lineSlice, processedLine)
+			}
 			if !shuffle && !quietMode {
 				fmt.Println(processedLine)
 			}
@@ -324,7 +326,9 @@ func main() {
 			}
 
 			if appendMode {
-				lineSlice = append(lineSlice, processedLine) // keep duplicates for shuffle
+				if shuffle {
+					lineSlice = append(lineSlice, processedLine) // keep duplicates for shuffle
+				}
 				if !quietMode && !shuffle {
 					fmt.Println(processedLine)
 				}
@@ -336,7 +340,9 @@ func main() {
 			} else {
 				if _, exists := lines[processedLine]; !exists {
 					lines[processedLine] = struct{}{}
-					lineSlice = append(lineSlice, processedLine) // Collect lines for shuffling
+					if shuffle {
+						lineSlice = append(lineSlice, processedLine) // Collect lines for shuffling
+					}
 					if !quietMode && !shuffle {
 						fmt.Println(processedLine)
 					}
@@ -380,18 +386,72 @@ func main() {
 
 	// Handling the case when dividing lines into equal files
 	if divide > 0 {
-		// Read all lines from stdin first
+		// Streaming mode for append (LOW MEMORY)
+		if appendMode {
+			baseName := strings.TrimSuffix(fn, ".txt")
+			hasTxtSuffix := strings.HasSuffix(fn, ".txt")
+
+			// Open all files upfront
+			files := make([]*os.File, divide)
+			writers := make([]*bufio.Writer, divide)
+
+			for i := 0; i < divide; i++ {
+				fileName := generateFileName(baseName, i+1, hasTxtSuffix)
+				if err := ensureParentDir(fileName); err != nil {
+					fmt.Printf("Error creating directory for %s: %v\n", fileName, err)
+					return
+				}
+
+				file, err := os.Create(fileName)
+				if err != nil {
+					fmt.Printf("Error creating file %s: %v\n", fileName, err)
+					return
+				}
+				files[i] = file
+				writers[i] = bufio.NewWriter(file)
+			}
+
+			// Ensure all files are closed and flushed
+			defer func() {
+				for i := 0; i < divide; i++ {
+					if writers[i] != nil {
+						writers[i].Flush()
+					}
+					if files[i] != nil {
+						files[i].Close()
+					}
+				}
+			}()
+
+			// Stream lines in round-robin fashion
+			lineIndex := 0
+			sc := bufio.NewScanner(os.Stdin)
+			for sc.Scan() {
+				line := sc.Text()
+				processedLine, skip := processLine(line, trim, ignoreCase, removeEmptyLines)
+				if skip {
+					continue
+				}
+
+				// Write to file in round-robin fashion
+				fileIdx := lineIndex % divide
+				writers[fileIdx].WriteString(processedLine + "\n")
+				if !quietMode {
+					fmt.Println(processedLine)
+				}
+				lineIndex++
+			}
+
+			return
+		}
+
+		// Non-append mode: Read all lines first for deduplication
 		sc := bufio.NewScanner(os.Stdin)
 		allLines := []string{}
 		for sc.Scan() {
 			line := sc.Text()
 			processedLine, skip := processLine(line, trim, ignoreCase, removeEmptyLines)
 			if skip {
-				continue
-			}
-
-			if appendMode {
-				allLines = append(allLines, processedLine)
 				continue
 			}
 
@@ -522,18 +582,40 @@ func main() {
 			// Calculate line size (including newline character)
 			lineSize := int64(len(processedLine) + 1) // +1 for the newline character
 
-			// If adding this line would exceed the size limit, create a new file
-			// (but only if current file already has content, to allow single large lines)
-			if currentFileSize > 0 && currentFileSize+lineSize > maxSizeBytes {
-				openNewFile()
-			}
+			if appendMode {
+				// If adding this line would exceed the size limit, create a new file
+				// (but only if current file already has content, to allow single large lines)
+				if currentFileSize > 0 && currentFileSize+lineSize > maxSizeBytes {
+					openNewFile()
+				}
 
-			// Write line to current file
-			if currentFile != nil {
-				w.WriteString(processedLine + "\n")
-				currentFileSize += lineSize
-				if !quietMode {
-					fmt.Println(processedLine)
+				// Write line to current file without duplicate checking
+				if currentFile != nil {
+					w.WriteString(processedLine + "\n")
+					currentFileSize += lineSize
+					if !quietMode {
+						fmt.Println(processedLine)
+					}
+				}
+			} else {
+				// Check for duplicates
+				if _, exists := lines[processedLine]; !exists {
+					lines[processedLine] = struct{}{}
+
+					// If adding this line would exceed the size limit, create a new file
+					// (but only if current file already has content, to allow single large lines)
+					if currentFileSize > 0 && currentFileSize+lineSize > maxSizeBytes {
+						openNewFile()
+					}
+
+					// Write line to current file
+					if currentFile != nil {
+						w.WriteString(processedLine + "\n")
+						currentFileSize += lineSize
+						if !quietMode {
+							fmt.Println(processedLine)
+						}
+					}
 				}
 			}
 		}
@@ -577,7 +659,9 @@ func main() {
 			}
 			if _, exists := lines[processedLine]; !exists {
 				lines[processedLine] = struct{}{}
-				lineSlice = append(lineSlice, processedLine) // Collect lines for shuffling
+				if shuffle {
+					lineSlice = append(lineSlice, processedLine) // Collect lines for shuffling
+				}
 				if !quietMode && !shuffle {
 					fmt.Println(processedLine)
 				}
@@ -616,7 +700,9 @@ func main() {
 			}
 			if _, exists := lines[processedLine]; !exists {
 				lines[processedLine] = struct{}{}
-				lineSlice = append(lineSlice, processedLine) // Collect lines for shuffling
+				if shuffle {
+					lineSlice = append(lineSlice, processedLine) // Collect lines for shuffling
+				}
 				if !quietMode && !shuffle {
 					fmt.Println(processedLine)
 				}
